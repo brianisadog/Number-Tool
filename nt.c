@@ -5,12 +5,12 @@
 
 bool parse_argv(int, char **, char *, int *, int *, int *);
 void set_start_end(char *, int *, int *);
-void convert_to_binary(char *, char *);
-void binary_to_binary(char *, int, char *);
-void hexadecimal_to_binary(char *, int, char *);
-void string_to_binary(char *, int, char *);
-void unsigned_decimal_to_binary(long, char *);
-void to_negative(char *);
+bool convert_to_binary(char *, char *);
+bool binary_to_binary(char *, int, char *);
+bool hexadecimal_to_binary(char *, int, char *);
+bool string_to_binary(char *, int, char *);
+bool unsigned_decimal_to_binary(unsigned long long, char *);
+bool to_negative(char *);
 void print_binary_4_chunk(char *);
 void print_binary(char *);
 
@@ -21,8 +21,14 @@ int main(int argc, char **argv) {
     bool check;
     
     check = parse_argv(argc, argv, bits, &bit_count, &range_start, &range_end);
-    printf("count = %d, start = %d, end = %d\n", bit_count, range_start, range_end);
-    printf("bits = %s\n", bits);
+
+    if (!check) {
+        printf("Error: %s cannot fit into 32 bits.\n", argv[0]);
+    }
+    else {
+        printf("count = %d, start = %d, end = %d\n", bit_count, range_start, range_end);
+        printf("bits = %s\n", bits);
+    }
     /*decimal_to_binary(bits, atoi(argv[1]));
 
     print_binary_4_chunk(bits);
@@ -33,6 +39,9 @@ int main(int argc, char **argv) {
 
 bool parse_argv(int argc, char **argv, char *bits, int *bit_count, int *range_start, int *range_end) {
     int i;
+    bool check;
+
+    // default setting
     *bit_count = 32;
     *range_start = 0;
     *range_end = 31;
@@ -47,11 +56,12 @@ bool parse_argv(int argc, char **argv, char *bits, int *bit_count, int *range_st
             i++;
         }
         else {
-            convert_to_binary(argv[i], bits);
+            check = convert_to_binary(argv[i], bits);
+            strcpy(argv[0], argv[i]);
         }
     }
     
-    return true;
+    return check;
 }
 
 void set_start_end(char *arg, int *range_start, int *range_end) {
@@ -75,33 +85,47 @@ void set_start_end(char *arg, int *range_start, int *range_end) {
     *range_end = atoi(temp);
 }
 
-void convert_to_binary(char *arg, char *bits) {
+bool convert_to_binary(char *arg, char *bits) {
     int len = strlen(arg);
+    bool check;
+    
     if (len > 2 && arg[1] == 'b') {
-        binary_to_binary(arg, len, bits);
+        check = binary_to_binary(arg, len, bits);
     }
     else if (len > 2 && arg[1] == 'x') {
-        hexadecimal_to_binary(arg, len, bits);
+        check = hexadecimal_to_binary(arg, len, bits);
     }
     else {
-        string_to_binary(arg, len, bits);
+        check = string_to_binary(arg, len, bits);
     }
 
     bits[32] = '\0';
+    return check;
 }
 
-void binary_to_binary(char *arg, int len, char *bits) {
+bool binary_to_binary(char *arg, int len, char *bits) {
     int i, j;
+    bool check = true;
 
-    for (i = len - 1, j = 31; j >= 0; i--, j--) {
-        bits[j] = i >= 2 ? arg[i] : '0';
+    for (i = len - 1, j = 31; j >= 0 || i >= 2; i--, j--) {
+        if (i < 2) {
+            bits[j] = '0';
+        }
+        else if (j < 0 && arg[i] == '1') {
+            check = false; // overflow
+        }
+        else if (j >= 0) {
+            bits[j] = arg[i];
+        }
     }
+
+    return check;
 }
 
-void hexadecimal_to_binary(char *arg, int len, char *bits) {
+bool hexadecimal_to_binary(char *arg, int len, char *bits) {
     int i;
     char c;
-    long unsigned_decimal;
+    unsigned long unsigned_decimal;
 
     for (i = 2, unsigned_decimal = 0; i < len; i++) {
         c = arg[i];
@@ -109,15 +133,15 @@ void hexadecimal_to_binary(char *arg, int len, char *bits) {
         unsigned_decimal += (c >= 'A' && c <= 'F') ? (10 + c - 'A') : (0 + c - '0');
     }
     
-    unsigned_decimal_to_binary(unsigned_decimal, bits);
+    return unsigned_decimal_to_binary(unsigned_decimal, bits);
 }
 
-void string_to_binary(char *arg, int len, char *bits) {
+bool string_to_binary(char *arg, int len, char *bits) {
     int i;
     unsigned int temp;
     char c;
-    long unsigned_decimal;
-    bool negative = false;
+    unsigned long long unsigned_decimal;
+    bool check, negative = false;
 
     if (arg[0] == '-') {
         negative = true;
@@ -132,23 +156,31 @@ void string_to_binary(char *arg, int len, char *bits) {
         unsigned_decimal = unsigned_decimal * 10 + (0 + c - '0');
     }
 
-    unsigned_decimal_to_binary(unsigned_decimal, bits);  
+    check = unsigned_decimal_to_binary(unsigned_decimal, bits);  
 
     if (negative) {
-        to_negative(bits);
+        check = check && to_negative(bits);
     }
+
+    return check;
 }
 
-void unsigned_decimal_to_binary(long unsigned_decimal, char *bits) {
+bool unsigned_decimal_to_binary(unsigned long long unsigned_decimal, char *bits) {
     int i;
-    
+
     for (i = 31; i >= 0; i--) {
         bits[i] = (unsigned_decimal & 0b1) == 0 ? '0' : '1';
         unsigned_decimal >>= 1;
     }
+
+    if (unsigned_decimal > 0) {
+        return false;
+    }
+
+    return true;
 }
 
-void to_negative(char *bits) {
+bool to_negative(char *bits) {
     int i;
     char carry = '1';
 
@@ -168,6 +200,12 @@ void to_negative(char *bits) {
             break;
         }
     }
+
+    if (carry == '1') {
+        return false;
+    }
+
+    return true;
 }
 
 void print_binary_4_chunk(char *bits) {
