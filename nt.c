@@ -11,8 +11,13 @@ bool hexadecimal_to_binary(char *, int, char *);
 bool string_to_binary(char *, int, char *);
 bool unsigned_decimal_to_binary(unsigned long long, char *);
 bool to_negative(char *);
+void print_all(char *);
 void print_binary_4_chunk(char *);
 void print_binary(char *);
+void print_hexadecimal_and_unsigned(char *);
+void print_hexadecimal(unsigned int);
+void print_signed(char *);
+unsigned int calculate_decimal(char *);
 
 int main(int argc, char **argv) {
     
@@ -26,20 +31,15 @@ int main(int argc, char **argv) {
         printf("Error: %s cannot fit into 32 bits.\n", argv[0]);
     }
     else {
-        printf("count = %d, start = %d, end = %d\n", bit_count, range_start, range_end);
-        printf("bits = %s\n", bits);
+        print_all(bits);
     }
-    /*decimal_to_binary(bits, atoi(argv[1]));
-
-    print_binary_4_chunk(bits);
-    print_binary(bits);*/
 
     return 0;
 }
 
 bool parse_argv(int argc, char **argv, char *bits, int *bit_count, int *range_start, int *range_end) {
     int i;
-    bool check;
+    bool check = false;
 
     // default setting
     *bit_count = 32;
@@ -208,6 +208,13 @@ bool to_negative(char *bits) {
     return true;
 }
 
+void print_all(char *bits) {
+    print_binary_4_chunk(bits);
+    print_binary(bits);
+    print_hexadecimal_and_unsigned(bits);
+    print_signed(bits);
+}
+
 void print_binary_4_chunk(char *bits) {
     int i, counter;
 
@@ -230,4 +237,52 @@ void print_binary(char *bits) {
         printf("%c", bits[i]);
     }
     printf(" (base 2)\n");
+}
+
+void print_hexadecimal_and_unsigned(char *bits) {
+    unsigned int unsigned_decimal;
+    unsigned_decimal = calculate_decimal(bits);
+
+    print_hexadecimal(unsigned_decimal);
+    printf("%u (base 10 unsigned)\n", unsigned_decimal);
+}
+
+void print_hexadecimal(unsigned int unsigned_decimal) {
+    int i, temp, len = 32 / 4;
+    char hex[len + 1];
+
+    for (i = len - 1; i >= 0; i--) {
+        temp = unsigned_decimal % 16;
+        hex[i] = (temp >= 10) ? ('A' + temp - 10) : ('0' + temp);
+        unsigned_decimal /= 16;
+    }
+    hex[len] = '\0';
+    
+    printf("0x");
+    printf("%s (base 16)\n", hex);
+}
+
+void print_signed(char *bits) {
+    int decimal;
+    bool negative = false;
+
+    if (bits[0] == '1') {
+        to_negative(bits);
+        negative = true;
+    }
+
+    decimal = (int) calculate_decimal(bits) * (negative ? -1 : 1);
+
+    printf("%d (base 10 signed)\n", decimal);
+}
+
+unsigned int calculate_decimal(char *bits) {
+    unsigned int temp = 0;
+    int i;
+    
+    for (i = 0; i < 32; i++) {
+        temp = temp * 2 + (bits[i] == '1' ? 1 : 0);
+    }
+
+    return temp;
 }
