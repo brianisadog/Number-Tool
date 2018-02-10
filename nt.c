@@ -7,24 +7,24 @@
 
 bool parse_argv(int, char **, char *, int *, int *, int *);
 void set_start_end(char *, int *, int *);
-bool convert_to_binary(char *, char *);
+bool convert_to_binary(char *, char *, int);
 bool binary_to_binary(char *, int, char *);
 bool hexadecimal_to_binary(char *, int, char *);
-bool string_to_binary(char *, int, char *);
+bool string_to_binary(char *, int, char *, int);
 bool unsigned_decimal_to_binary(unsigned long long, char *);
-bool to_negative(char *);
+bool to_negative(char *, int);
 void set_output_bits(char *, char *, int, int, int);
 void print_all(char *, int);
 void print_binary(char *, int);
-void print_hexadecimal_and_unsigned(char *);
-void print_hexadecimal(unsigned int);
-void print_signed(char *);
-unsigned int calculate_decimal(char *);
+void print_hexadecimal_and_unsigned(char *, int);
+void print_hexadecimal(unsigned int, int);
+void print_signed(char *, int);
+unsigned int calculate_decimal(char *, int);
 
 int main(int argc, char **argv) {
     
     int bit_count, range_start, range_end;
-    char bits[BIT];
+    char bits[BIT], output_bits[BIT + 1];
     bool check;
     
     check = parse_argv(argc, argv, bits, &bit_count, &range_start, &range_end);
@@ -33,10 +33,8 @@ int main(int argc, char **argv) {
         printf("Error: %s cannot fit into %d bits.\n", argv[0], BIT);
     }
     else {
-        char output_bits[bit_count + 1];
         set_output_bits(output_bits, bits, bit_count, range_start, range_end);
-        printf("%s\n", output_bits);
-        //print_all(bits, bit_count);
+        print_all(output_bits, bit_count);
     }
 
     return 0;
@@ -61,7 +59,7 @@ bool parse_argv(int argc, char **argv, char *bits, int *bit_count, int *range_st
             i++;
         }
         else {
-            check = convert_to_binary(argv[i], bits);
+            check = convert_to_binary(argv[i], bits, BIT);
             strcpy(argv[0], argv[i]);
         }
     }
@@ -90,7 +88,7 @@ void set_start_end(char *arg, int *range_start, int *range_end) {
     *range_end = atoi(temp);
 }
 
-bool convert_to_binary(char *arg, char *bits) {
+bool convert_to_binary(char *arg, char *bits, int bit_count) {
     int len = strlen(arg);
     bool check;
     
@@ -101,7 +99,7 @@ bool convert_to_binary(char *arg, char *bits) {
         check = hexadecimal_to_binary(arg, len, bits);
     }
     else {
-        check = string_to_binary(arg, len, bits);
+        check = string_to_binary(arg, len, bits, bit_count);
     }
 
     return check;
@@ -140,7 +138,7 @@ bool hexadecimal_to_binary(char *arg, int len, char *bits) {
     return unsigned_decimal_to_binary(unsigned_decimal, bits);
 }
 
-bool string_to_binary(char *arg, int len, char *bits) {
+bool string_to_binary(char *arg, int len, char *bits, int bit_count) {
     int i;
     unsigned int temp;
     char c;
@@ -163,7 +161,7 @@ bool string_to_binary(char *arg, int len, char *bits) {
     check = unsigned_decimal_to_binary(unsigned_decimal, bits);  
 
     if (negative) {
-        check = check && to_negative(bits);
+        check = check && to_negative(bits, bit_count);
     }
 
     return check;
@@ -184,15 +182,15 @@ bool unsigned_decimal_to_binary(unsigned long long unsigned_decimal, char *bits)
     return true;
 }
 
-bool to_negative(char *bits) {
+bool to_negative(char *bits, int bit_count) {
     int i;
     char carry = '1';
 
-    for (i = BIT - 1; i >= 0; i--) {
+    for (i = bit_count - 1; i >= 0; i--) {
         bits[i] = bits[i] == '0' ? '1' : '0';
     }
 
-    for (i = BIT - 1; i >= 0; i--) {
+    for (i = bit_count - 1; i >= 0; i--) {
         if (carry == '1' && bits[i] == '1') {
             bits[i] = '0';
         }
@@ -229,15 +227,15 @@ void set_output_bits(char *output_bits, char *bits, int bit_count, int range_sta
 
 void print_all(char *output_bits, int bit_count) {
     print_binary(output_bits, bit_count);
-    print_hexadecimal_and_unsigned(output_bits);
-    print_signed(output_bits);
+    print_hexadecimal_and_unsigned(output_bits, bit_count);
+    print_signed(output_bits, bit_count);
 }
 
 void print_binary(char *output_bits, int bit_count) {
-    int i, counter;
+    int i, counter = (4 - bit_count % 4 + 1) % 4;
 
     // 4 chunks binary
-    for (i = 0, counter = 1; i < bit_count; i++, counter++) {
+    for (i = 0; i < bit_count; i++, counter++) {
         printf("%c", output_bits[i]);
         if (counter % 4 == 0) {
             printf(" ");
@@ -250,16 +248,16 @@ void print_binary(char *output_bits, int bit_count) {
     printf("0b%s (base 2)\n", output_bits);
 }
 
-void print_hexadecimal_and_unsigned(char *bits) {
+void print_hexadecimal_and_unsigned(char *bits, int bit_count) {
     unsigned int unsigned_decimal;
-    unsigned_decimal = calculate_decimal(bits);
+    unsigned_decimal = calculate_decimal(bits, bit_count);
 
-    print_hexadecimal(unsigned_decimal);
+    print_hexadecimal(unsigned_decimal, bit_count);
     printf("%u (base 10 unsigned)\n", unsigned_decimal);
 }
 
-void print_hexadecimal(unsigned int unsigned_decimal) {
-    int i, temp, len = BIT / 4;
+void print_hexadecimal(unsigned int unsigned_decimal, int bit_count) {
+    int i, temp, len = (bit_count % 4 == 0) ? (bit_count / 4) : (bit_count / 4 + 1);
     char hex[len + 1];
 
     for (i = len - 1; i >= 0; i--) {
@@ -273,25 +271,25 @@ void print_hexadecimal(unsigned int unsigned_decimal) {
     printf("%s (base 16)\n", hex);
 }
 
-void print_signed(char *bits) {
+void print_signed(char *output_bits, int bit_count) {
     int decimal;
     bool negative = false;
 
-    if (bits[0] == '1') {
-        to_negative(bits);
+    if (output_bits[0] == '1') {
+        to_negative(output_bits, bit_count);
         negative = true;
     }
 
-    decimal = (int) calculate_decimal(bits) * (negative ? -1 : 1);
+    decimal = (int) calculate_decimal(output_bits, bit_count) * (negative ? -1 : 1);
 
     printf("%d (base 10 signed)\n", decimal);
 }
 
-unsigned int calculate_decimal(char *bits) {
+unsigned int calculate_decimal(char *bits, int bit_count) {
     unsigned int temp = 0;
     int i;
     
-    for (i = 0; i < BIT; i++) {
+    for (i = 0; i < bit_count; i++) {
         temp = temp * 2 + (bits[i] == '1' ? 1 : 0);
     }
 
