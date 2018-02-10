@@ -158,9 +158,13 @@ bool string_to_binary(char *arg, int len, char *bits, int bit_count) {
         unsigned_decimal = unsigned_decimal * 10 + (0 + c - '0');
     }
 
-    check = unsigned_decimal_to_binary(unsigned_decimal, bits);  
+    if (negative && unsigned_decimal > (unsigned) 2147483648) {
+        return false; // signed overflow
+    }
+    
+    check = unsigned_decimal_to_binary(unsigned_decimal, bits);
 
-    if (negative) {
+    if (negative && unsigned_decimal > 0) {
         check = check && to_negative(bits, bit_count);
     }
 
