@@ -31,7 +31,18 @@ int main(int argc, char **argv) {
                        , &bit_width, &range_start, &range_end, &index);
 
     if (!check) {
-        printf("Error: %s cannot fit into %d bits.\n", argv[index], BIT);
+        if (index == -1) {
+            printf("Error: please input a valid argument.\n");
+        }
+        else if (index == -2) {
+            printf("Error: please input a valid bit width in 0-32.\n");
+        }
+        else if (index == -3) {
+            printf("Error: please intpur a valid range in 0-32 and start should not go over end.\n");
+        }
+        else {
+            printf("Error: %s cannot fit into %d bits.\n", argv[index], BIT);
+        }
     }
     else {
         set_output_bits(output_bits, bits, bit_width, range_start, range_end);
@@ -49,14 +60,23 @@ bool parse_argv(int argc, char **argv, char *bits
     *bit_width = BIT; // default settings
     *range_start = 0;
     *range_end = 31;
+    *index = -1; // if no input argument
 
     for (i = 1; i < argc; i++) {
         if (strcmp(argv[i], "-b") == 0) {
             *bit_width = atoi(argv[i + 1]);
+            if (*bit_width <= 0 || *bit_width > 32) {
+                *index = -2; // invalid bit width
+                return false;
+            }
             i++;
         }
         else if (strcmp(argv[i], "-r") == 0) {
             set_start_end(argv[i + 1], range_start, range_end);
+            if (*range_start < 0 || *range_start > 32 || *range_end < 0 || *range_end > 32 || *range_start > *range_end) {
+                *index = -3; // invalid range
+                return false;
+            }
             i++;
         }
         else {
@@ -118,6 +138,9 @@ bool binary_to_binary(char *arg, int len, char *bits) {
             check = false; // if there is an '1' after 32nd bit, overflow
         }
         else if (j >= 0) {
+            if (arg[i] != '0' && arg[i] != '1') {
+                return false;
+            }
             bits[j] = arg[i];
         }
     }
@@ -132,6 +155,9 @@ bool hexadecimal_to_binary(char *arg, int len, char *bits) {
 
     for (i = 2, unsigned_decimal = 0; i < len; i++) {
         c = arg[i];
+        if (!((c >= 'A' && c <= 'F') || (c >= '0' && c <= '9'))) {
+            return false; // invalid character
+        }
         unsigned_decimal *= 16;
         unsigned_decimal += (c >= 'A' && c <= 'F') ? (10 + c - 'A') : (0 + c - '0');
     }
@@ -156,6 +182,9 @@ bool string_to_binary(char *arg, int len, char *bits, int bit_width) {
     
     for (unsigned_decimal = 0; i < len; i++) {
         c = arg[i];
+        if (!(c >= '0' && c <= '9')) {
+            return false; // invalid character
+        }
         unsigned_decimal = unsigned_decimal * 10 + (0 + c - '0');
     }
 
